@@ -1,3 +1,7 @@
+### 0.1.4
+
+- copy publish workflow from jsr.io 1:1
+
 ### 0.1.3
 
 - remove legacy folder
