@@ -1,3 +1,7 @@
+### 0.1.3
+
+- remove legacy folder
+
 ### 0.1.2
 
 - add changelog
