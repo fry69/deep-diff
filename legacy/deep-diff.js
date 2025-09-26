@@ -1,3 +1,5 @@
+// deep-diff.js - v1.0.2 - MIT - original source: https://github.com/flitbit/diff
+
 (function (root, factory) { // eslint-disable-line no-extra-semi
   var deepDiff = factory(root);
   // eslint-disable-next-line no-undef

@@ -43,10 +43,17 @@ export type PreFilterFunction = (path: Path, key: any) => boolean;
 
 export interface PreFilterObject<LHS = any, RHS = any> {
   prefilter?: (path: Path, key: any) => boolean;
-  normalize?: (currentPath: Path, key: any, lhs: LHS, rhs: RHS) => [LHS, RHS] | undefined;
+  normalize?: (
+    currentPath: Path,
+    key: any,
+    lhs: LHS,
+    rhs: RHS,
+  ) => [LHS, RHS] | undefined;
 }
 
-export type PreFilter<LHS = any, RHS = any> = PreFilterFunction | PreFilterObject<LHS, RHS>;
+export type PreFilter<LHS = any, RHS = any> =
+  | PreFilterFunction
+  | PreFilterObject<LHS, RHS>;
 
 export interface Accumulator<LHS = any, RHS = any> {
   push(diff: Diff<LHS, RHS>): void;
@@ -91,7 +98,10 @@ function realTypeOf(subject: any): string {
     return "array";
   } else if (Object.prototype.toString.call(subject) === "[object Date]") {
     return "date";
-  } else if (typeof subject?.toString === "function" && /^\/.*\//.test(subject.toString())) {
+  } else if (
+    typeof subject?.toString === "function" &&
+    /^\/.*\//.test(subject.toString())
+  ) {
     // legacy quirk: treat objects whose toString returns /.../ as regexp
     return "regexp";
   }
@@ -147,12 +157,19 @@ function makeDiffNew<RHS>(path: Path | undefined, rhs: RHS): DiffNew<RHS> {
   if (path && path.length) d.path = path;
   return d;
 }
-function makeDiffDeleted<LHS>(path: Path | undefined, lhs: LHS): DiffDeleted<LHS> {
+function makeDiffDeleted<LHS>(
+  path: Path | undefined,
+  lhs: LHS,
+): DiffDeleted<LHS> {
   const d: DiffDeleted<LHS> = { kind: "D", lhs };
   if (path && path.length) d.path = path;
   return d;
 }
-function makeDiffEdit<LHS, RHS>(path: Path | undefined, lhs: LHS, rhs: RHS): DiffEdit<LHS, RHS> {
+function makeDiffEdit<LHS, RHS>(
+  path: Path | undefined,
+  lhs: LHS,
+  rhs: RHS,
+): DiffEdit<LHS, RHS> {
   const d: DiffEdit<LHS, RHS> = { kind: "E", lhs, rhs };
   if (path && path.length) d.path = path;
   return d;
@@ -218,10 +235,16 @@ function deepDiffInner<LHS = any, RHS = LHS>(
   // legacy defined checks (uses property descriptor check from top of stack)
   const ldefined = ltype !== "undefined" ||
     (stack && stack.length > 0 && stack[stack.length - 1].lhs &&
-      Object.getOwnPropertyDescriptor(stack[stack.length - 1].lhs, key as string | number));
+      Object.getOwnPropertyDescriptor(
+        stack[stack.length - 1].lhs,
+        key as string | number,
+      ));
   const rdefined = rtype !== "undefined" ||
     (stack && stack.length > 0 && stack[stack.length - 1].rhs &&
-      Object.getOwnPropertyDescriptor(stack[stack.length - 1].rhs, key as string | number));
+      Object.getOwnPropertyDescriptor(
+        stack[stack.length - 1].rhs,
+        key as string | number,
+      ));
 
   if (!ldefined && rdefined) {
     changes.push(makeDiffNew(currentPath, rhs));
@@ -246,8 +269,12 @@ function deepDiffInner<LHS = any, RHS = LHS>(
       if (Array.isArray(lhs)) {
         // order-independent mode sorts arrays in-place in original
         if (orderIndependent) {
-          lhs.sort((a: any, b: any) => getOrderIndependentHash(a) - getOrderIndependentHash(b));
-          rhs.sort((a: any, b: any) => getOrderIndependentHash(a) - getOrderIndependentHash(b));
+          lhs.sort((a: any, b: any) =>
+            getOrderIndependentHash(a) - getOrderIndependentHash(b)
+          );
+          rhs.sort((a: any, b: any) =>
+            getOrderIndependentHash(a) - getOrderIndependentHash(b)
+          );
         }
 
         let i = rhs.length - 1;
@@ -255,11 +282,15 @@ function deepDiffInner<LHS = any, RHS = LHS>(
 
         while (i > j) {
           // RHS has extra elements -> New
-          changes.push(makeDiffArray(currentPath, i, makeDiffNew(undefined, rhs[i--])));
+          changes.push(
+            makeDiffArray(currentPath, i, makeDiffNew(undefined, rhs[i--])),
+          );
         }
         while (j > i) {
           // LHS has extra elements -> Deleted
-          changes.push(makeDiffArray(currentPath, j, makeDiffDeleted(undefined, lhs[j--])));
+          changes.push(
+            makeDiffArray(currentPath, j, makeDiffDeleted(undefined, lhs[j--])),
+          );
         }
         for (; i >= 0; --i) {
           deepDiffInner(
@@ -347,7 +378,16 @@ export function observableDiff<LHS = any, RHS = LHS>(
   orderIndependent = false,
 ): Array<Diff<LHS, RHS>> {
   const changes: Array<Diff<LHS, RHS>> = [];
-  deepDiffInner(lhs, rhs, changes, prefilter, [], undefined, [], orderIndependent);
+  deepDiffInner(
+    lhs,
+    rhs,
+    changes,
+    prefilter,
+    [],
+    undefined,
+    [],
+    orderIndependent,
+  );
   if (observer) {
     for (let i = 0; i < changes.length; ++i) {
       observer(changes[i]);
@@ -388,7 +428,16 @@ export function orderIndependentDeepDiff<LHS = any, RHS = LHS>(
   stack?: any[],
 ): void {
   // Wrapper that sets orderIndependent = true for the internal recursion.
-  deepDiffInner(lhs, rhs, changes, prefilter, path ?? [], key, stack ?? [], true);
+  deepDiffInner(
+    lhs,
+    rhs,
+    changes,
+    prefilter,
+    path ?? [],
+    key,
+    stack ?? [],
+    true,
+  );
 }
 
 export function accumulateOrderIndependentDiff<LHS = any, RHS = LHS>(
@@ -438,7 +487,11 @@ function applyArrayChange(arr: any[], index: number, change: Diff) {
   } else {
     switch (change.kind) {
       case "A":
-        applyArrayChange(arr[index], (change as DiffArray).index, (change as DiffArray).item);
+        applyArrayChange(
+          arr[index],
+          (change as DiffArray).index,
+          (change as DiffArray).item,
+        );
         break;
       case "D":
         arr = arrayRemove(arr, index);
@@ -452,7 +505,11 @@ function applyArrayChange(arr: any[], index: number, change: Diff) {
   return arr;
 }
 
-export function applyChange<Target = any>(target: Target, source: any, change?: Diff): void {
+export function applyChange<Target = any>(
+  target: Target,
+  source: any,
+  change?: Diff,
+): void {
   // Legacy allowed applyChange(target, change) by passing change as 'source' if change undefined and source.kind valid.
   if (
     typeof change === "undefined" && source &&
@@ -468,7 +525,8 @@ export function applyChange<Target = any>(target: Target, source: any, change?: 
     const last = path.length > 0 ? path.length - 1 : 0;
     while (++i < last) {
       if (typeof it[path[i]] === "undefined") {
-        it[path[i]] = (typeof path[i + 1] !== "undefined" && typeof path[i + 1] === "number")
+        it[path[i]] = (typeof path[i + 1] !== "undefined" &&
+            typeof path[i + 1] === "number")
           ? []
           : {};
       }
@@ -527,7 +585,11 @@ function revertArrayChange(arr: any[], index: number, change: Diff) {
   } else {
     switch (change.kind) {
       case "A":
-        revertArrayChange(arr[index], (change as DiffArray).index, (change as DiffArray).item);
+        revertArrayChange(
+          arr[index],
+          (change as DiffArray).index,
+          (change as DiffArray).item,
+        );
         break;
       case "D": //
         arr[index] = (change as any).lhs;
@@ -543,7 +605,11 @@ function revertArrayChange(arr: any[], index: number, change: Diff) {
   return arr;
 }
 
-export function revertChange<Target = any>(target: Target, source: any, change: Diff): void {
+export function revertChange<Target = any>(
+  target: Target,
+  source: any,
+  change: Diff,
+): void {
   if (target && source && change && change.kind) {
     let it: any = target as any;
     const path = change.path ?? [];
@@ -591,7 +657,12 @@ export function applyDiff<Target = any, Source = any>(
         applyChange(target, source, change);
       }
     };
-    observableDiff(target as any, source as any, onChange as Observer<any, any>, undefined);
+    observableDiff(
+      target as any,
+      source as any,
+      onChange as Observer<any, any>,
+      undefined,
+    );
   }
 }
 
@@ -638,9 +709,15 @@ const deepDiffMain = (function createMain(): any {
   // Attach helpers as properties to mimic legacy module's API
   Object.defineProperties(fn, {
     diff: { value: accumulateDiff, enumerable: true },
-    orderIndependentDiff: { value: accumulateOrderIndependentDiff, enumerable: true },
+    orderIndependentDiff: {
+      value: accumulateOrderIndependentDiff,
+      enumerable: true,
+    },
     observableDiff: { value: observableDiff, enumerable: true },
-    orderIndependentObservableDiff: { value: orderIndependentDeepDiff, enumerable: true },
+    orderIndependentObservableDiff: {
+      value: orderIndependentDeepDiff,
+      enumerable: true,
+    },
     orderIndepHash: { value: getOrderIndependentHash, enumerable: true },
     applyDiff: { value: applyDiff, enumerable: true },
     applyChange: { value: applyChange, enumerable: true },

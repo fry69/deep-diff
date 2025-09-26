@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "exports": "./deep-diff.ts",
   "tasks": {
-    "dev": "deno test --watch"
+    "test": "deno test deep-diff_test.ts",
+    "dev": "deno test --watch deep-diff_test.ts",
+    "check": "deno lint deep-diff.ts && deno fmt --check deep-diff.ts && deno test deep-diff_test.ts"
   },
   "license": "MIT",
   "imports": {

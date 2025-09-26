@@ -1,3 +1,6 @@
+// Type definitions for deep-diff 1.0.2 - MIT
+// Source: https://github.com/DefinitelyTyped/DefinitelyTyped/blob/master/types/deep-diff/index.d.ts
+
 declare function deepDiff<LHS, RHS = LHS>(
     lhs: LHS,
     rhs: RHS,
