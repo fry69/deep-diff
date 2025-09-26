@@ -1,24 +1,67 @@
+/**
+ * A modern TypeScript port of the legacy `deep-diff` package that computes
+ * structural differences, applies patches, and reverses changes across nested
+ * objects and arrays while preserving the original algorithm's quirks.
+ *
+ * @example
+ * ```ts
+ * import deepDiff from "@fry69/deep-diff";
+ *
+ * const left = { name: "Ada", tags: ["math", "logic"] };
+ * const right = { name: "Ada", tags: ["math", "computing"] };
+ *
+ * const changes = deepDiff(left, right);
+ * // => [{ kind: "A", path: ["tags"], index: 1, item: { kind: "E", rhs: "computing", lhs: "logic" } }]
+ * ```
+ *
+ * @module deepDiff
+ */
 // deno-lint-ignore-file no-explicit-any
-// deep-diff.ts
-// Modern TypeScript ESM port of the legacy deep-diff algorithm.
-// Preserves original behavior/quirks for drop-in replacement.
 
+/**
+ * Ordered list of keys and indices describing how to reach a nested value
+ * within an object graph. Each entry represents a step in the traversal.
+ */
 export type Path = Array<any>;
 
+/**
+ * Discriminator shared by {@link Diff} variants.
+ *
+ * - `"N"` — a new value was added
+ * - `"E"` — an existing value was edited
+ * - `"A"` — an array slot changed
+ * - `"D"` — a value was deleted
+ */
 export type Kind = "N" | "E" | "A" | "D";
 
+/**
+ * Diff node representing a newly added value.
+ *
+ * @typeParam RHS - The type of the right-hand side value.
+ */
 export interface DiffNew<RHS = any> {
   kind: "N";
   path?: Path;
   rhs: RHS;
 }
 
+/**
+ * Diff node capturing a deletion from the left-hand structure.
+ *
+ * @typeParam LHS - The type of the removed value.
+ */
 export interface DiffDeleted<LHS = any> {
   kind: "D";
   path?: Path;
   lhs: LHS;
 }
 
+/**
+ * Diff node representing a change where a value was replaced.
+ *
+ * @typeParam LHS - Type of the original value.
+ * @typeParam RHS - Type of the new value.
+ */
 export interface DiffEdit<LHS = any, RHS = LHS> {
   kind: "E";
   path?: Path;
@@ -26,6 +69,12 @@ export interface DiffEdit<LHS = any, RHS = LHS> {
   rhs: RHS;
 }
 
+/**
+ * Diff node describing a nested change inside an array.
+ *
+ * @typeParam LHS - Type of the previous item.
+ * @typeParam RHS - Type of the new item.
+ */
 export interface DiffArray<LHS = any, RHS = LHS> {
   kind: "A";
   path?: Path;
@@ -33,16 +82,50 @@ export interface DiffArray<LHS = any, RHS = LHS> {
   item: Diff<LHS, RHS>;
 }
 
+/**
+ * Union of all change record shapes produced by {@link observableDiff} and
+ * related helpers.
+ *
+ * @typeParam LHS - Type of the left-hand structure.
+ * @typeParam RHS - Type of the right-hand structure.
+ */
 export type Diff<LHS = any, RHS = LHS> =
   | DiffNew<RHS>
   | DiffDeleted<LHS>
   | DiffEdit<LHS, RHS>
   | DiffArray<LHS, RHS>;
 
+/**
+ * Predicate-style filter invoked before traversing a key.
+ *
+ * @param path - Path accumulated for the parent node.
+ * @param key - Candidate key or index about to be traversed.
+ * @returns `true` to skip the key entirely.
+ */
 export type PreFilterFunction = (path: Path, key: any) => boolean;
 
+/**
+ * Object-form prefilter with optional normalization step.
+ *
+ * @typeParam LHS - Type of the left-hand structure.
+ * @typeParam RHS - Type of the right-hand structure.
+ */
 export interface PreFilterObject<LHS = any, RHS = any> {
+  /** Predicate-style skip function.
+   * @param path - Path accumulated for the parent node.
+   * @param key - Candidate key or index about to be traversed.
+   */
   prefilter?: (path: Path, key: any) => boolean;
+  /**
+   * Optional hook that can return alternate values to compare before diffing
+   * a specific key.
+   *
+   * @param currentPath - Path accumulated through the traversal.
+   * @param key - Key or index currently being inspected.
+   * @param lhs - Original value located at {@link currentPath}.
+   * @param rhs - New value located at {@link currentPath}.
+   * @returns A tuple of replacement values or `undefined` to use originals.
+   */
   normalize?: (
     currentPath: Path,
     key: any,
@@ -51,17 +134,38 @@ export interface PreFilterObject<LHS = any, RHS = any> {
   ) => [LHS, RHS] | undefined;
 }
 
+/**
+ * Union of supported prefilter declarations accepted by diff helpers.
+ */
 export type PreFilter<LHS = any, RHS = any> =
   | PreFilterFunction
   | PreFilterObject<LHS, RHS>;
 
+/**
+ * Array-like receiver that can collect diff results.
+ *
+ * @typeParam LHS - Type of the original structure.
+ * @typeParam RHS - Type of the incoming structure.
+ */
 export interface Accumulator<LHS = any, RHS = any> {
+  /** Collects a diff entry emitted by the traversal. */
   push(diff: Diff<LHS, RHS>): void;
   length: number;
 }
 
+/**
+ * Callback invoked for each diff entry discovered by {@link observableDiff}.
+ */
 export type Observer<LHS = any, RHS = any> = (diff: Diff<LHS, RHS>) => void;
 
+/**
+ * Optional predicate that decides whether a change should be applied.
+ *
+ * @param target - The mutable structure receiving modifications.
+ * @param source - The reference structure used as the source of truth.
+ * @param change - The proposed diff entry.
+ * @returns `true` to allow the change, `false` to skip it.
+ */
 export type Filter<LHS = any, RHS = any> = (
   target: LHS,
   source: RHS,
@@ -114,14 +218,21 @@ function hashThisString(string: string): number {
   if (string.length === 0) return hash;
   for (let i = 0; i < string.length; i++) {
     const char = string.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
+    hash = (hash << 5) - hash + char;
     // Convert to 32bit int
     hash |= 0;
   }
   return hash;
 }
 
-// Order-independent hash for objects/arrays. Preserves original algorithm.
+/**
+ * Computes an order-independent hash for objects, arrays, and primitives using
+ * the legacy algorithm. Useful for comparing collections where element order is
+ * insignificant.
+ *
+ * @param object - Value to hash.
+ * @returns A deterministic integer hash.
+ */
 export function getOrderIndependentHash(object: any): number {
   let accum = 0;
   const type = realTypeOf(object);
@@ -136,7 +247,9 @@ export function getOrderIndependentHash(object: any): number {
     for (const key in object) {
       if (Object.prototype.hasOwnProperty.call(object, key)) {
         const keyValueString = `[ type: object, key: ${key}, value hash: ${
-          getOrderIndependentHash(object[key])
+          getOrderIndependentHash(
+            object[key],
+          )
         }]`;
         accum += hashThisString(keyValueString);
       }
@@ -152,11 +265,23 @@ export function getOrderIndependentHash(object: any): number {
    Diff factory helpers
    ------------------------- */
 
+/**
+ * Creates a "new" diff record representing an added value.
+ *
+ * @param path - Optional path where the value resides.
+ * @param rhs - The value that was introduced.
+ */
 function makeDiffNew<RHS>(path: Path | undefined, rhs: RHS): DiffNew<RHS> {
   const d: DiffNew<RHS> = { kind: "N", rhs };
   if (path && path.length) d.path = path;
   return d;
 }
+/**
+ * Creates a "deleted" diff record representing removal from the left-hand side.
+ *
+ * @param path - Optional path that identifies the removed value.
+ * @param lhs - The value that was removed.
+ */
 function makeDiffDeleted<LHS>(
   path: Path | undefined,
   lhs: LHS,
@@ -165,6 +290,13 @@ function makeDiffDeleted<LHS>(
   if (path && path.length) d.path = path;
   return d;
 }
+/**
+ * Creates an "edit" diff record capturing a replacement.
+ *
+ * @param path - Optional path to the mutated value.
+ * @param lhs - The original value.
+ * @param rhs - The replacement value.
+ */
 function makeDiffEdit<LHS, RHS>(
   path: Path | undefined,
   lhs: LHS,
@@ -174,6 +306,13 @@ function makeDiffEdit<LHS, RHS>(
   if (path && path.length) d.path = path;
   return d;
 }
+/**
+ * Creates an array diff record nesting another {@link Diff} entry.
+ *
+ * @param path - Optional path to the parent array.
+ * @param index - Index within the array that changed.
+ * @param item - The nested diff describing the array slot change.
+ */
 function makeDiffArray<LHS, RHS>(
   path: Path | undefined,
   index: number,
@@ -234,13 +373,17 @@ function deepDiffInner<LHS = any, RHS = LHS>(
 
   // legacy defined checks (uses property descriptor check from top of stack)
   const ldefined = ltype !== "undefined" ||
-    (stack && stack.length > 0 && stack[stack.length - 1].lhs &&
+    (stack &&
+      stack.length > 0 &&
+      stack[stack.length - 1].lhs &&
       Object.getOwnPropertyDescriptor(
         stack[stack.length - 1].lhs,
         key as string | number,
       ));
   const rdefined = rtype !== "undefined" ||
-    (stack && stack.length > 0 && stack[stack.length - 1].rhs &&
+    (stack &&
+      stack.length > 0 &&
+      stack[stack.length - 1].rhs &&
       Object.getOwnPropertyDescriptor(
         stack[stack.length - 1].rhs,
         key as string | number,
@@ -252,7 +395,7 @@ function deepDiffInner<LHS = any, RHS = LHS>(
     changes.push(makeDiffDeleted(currentPath, lhs));
   } else if (realTypeOf(lhs) !== realTypeOf(rhs)) {
     changes.push(makeDiffEdit(currentPath, lhs, rhs));
-  } else if (realTypeOf(lhs) === "date" && (lhs - rhs) !== 0) {
+  } else if (realTypeOf(lhs) === "date" && lhs - rhs !== 0) {
     // Date difference by numeric difference
     changes.push(makeDiffEdit(currentPath, lhs, rhs));
   } else if (ltype === "object" && lhs !== null && rhs !== null) {
@@ -269,11 +412,13 @@ function deepDiffInner<LHS = any, RHS = LHS>(
       if (Array.isArray(lhs)) {
         // order-independent mode sorts arrays in-place in original
         if (orderIndependent) {
-          lhs.sort((a: any, b: any) =>
-            getOrderIndependentHash(a) - getOrderIndependentHash(b)
+          lhs.sort(
+            (a: any, b: any) =>
+              getOrderIndependentHash(a) - getOrderIndependentHash(b),
           );
-          rhs.sort((a: any, b: any) =>
-            getOrderIndependentHash(a) - getOrderIndependentHash(b)
+          rhs.sort(
+            (a: any, b: any) =>
+              getOrderIndependentHash(a) - getOrderIndependentHash(b),
           );
         }
 
@@ -370,6 +515,20 @@ function deepDiffInner<LHS = any, RHS = LHS>(
    Observable and accumulate wrappers
    ------------------------- */
 
+/**
+ * Produces a list of {@link Diff} entries describing how `lhs` differs from
+ * `rhs`. Optionally calls an {@link Observer} for each change as it is
+ * discovered.
+ *
+ * @typeParam LHS - Type of the baseline structure.
+ * @typeParam RHS - Type of the structure to compare against.
+ * @param lhs - Baseline value treated as the source of truth.
+ * @param rhs - Value being compared to the baseline.
+ * @param observer - Optional callback invoked for each change.
+ * @param prefilter - Optional prefilter to skip or normalize keys.
+ * @param orderIndependent - When `true`, array order differences are ignored.
+ * @returns Array of diff entries capturing the changes.
+ */
 export function observableDiff<LHS = any, RHS = LHS>(
   lhs: LHS,
   rhs: RHS,
@@ -397,10 +556,17 @@ export function observableDiff<LHS = any, RHS = LHS>(
 }
 
 /**
- * The accumulator-style API (the legacy default export used this name).
- * Behavior:
- *  - If `accum` is provided, it is used as the accumulator and returned.
- *  - If no `accum` provided, returns `changes` array if non-empty, otherwise returns `undefined`.
+ * Legacy accumulator-style API that either populates a provided accumulator or
+ * returns the collected {@link Diff} entries.
+ *
+ * @typeParam LHS - Type of the baseline structure.
+ * @typeParam RHS - Type of the structure to compare against.
+ * @param lhs - Baseline value treated as the source of truth.
+ * @param rhs - Value being compared to the baseline.
+ * @param prefilter - Optional prefilter to skip or normalize keys.
+ * @param accum - Optional accumulator that receives each diff entry.
+ * @returns The accumulator when provided, otherwise the array of diffs or
+ * `undefined` when no changes exist.
  */
 export function accumulateDiff<LHS = any, RHS = LHS>(
   lhs: LHS,
@@ -415,9 +581,23 @@ export function accumulateDiff<LHS = any, RHS = LHS>(
     : undefined;
 
   const changes = observableDiff(lhs, rhs, observer, prefilter);
-  return accum ? accum : (changes.length ? changes : undefined);
+  return accum ? accum : changes.length ? changes : undefined;
 }
 
+/**
+ * Variant of {@link observableDiff} that reuses a provided array of changes and
+ * treats arrays as order-independent.
+ *
+ * @typeParam LHS - Type of the baseline structure.
+ * @typeParam RHS - Type of the structure to compare against.
+ * @param lhs - Baseline value treated as the source of truth.
+ * @param rhs - Value being compared to the baseline.
+ * @param changes - Mutable array collecting diff entries.
+ * @param prefilter - Optional prefilter to skip or normalize keys.
+ * @param path - Internal traversal path (mostly for recursion).
+ * @param key - Key or index currently being inspected.
+ * @param stack - Shared stack used for cycle detection.
+ */
 export function orderIndependentDeepDiff<LHS = any, RHS = LHS>(
   lhs: LHS,
   rhs: RHS,
@@ -440,6 +620,19 @@ export function orderIndependentDeepDiff<LHS = any, RHS = LHS>(
   );
 }
 
+/**
+ * Convenience wrapper around {@link observableDiff} that ignores element order
+ * inside arrays.
+ *
+ * @typeParam LHS - Type of the baseline structure.
+ * @typeParam RHS - Type of the structure to compare against.
+ * @param lhs - Baseline value treated as the source of truth.
+ * @param rhs - Value being compared to the baseline.
+ * @param prefilter - Optional prefilter to skip or normalize keys.
+ * @param accum - Optional accumulator that receives each diff entry.
+ * @returns The accumulator when provided, otherwise the array of diffs or
+ * `undefined` when no changes exist.
+ */
 export function accumulateOrderIndependentDiff<LHS = any, RHS = LHS>(
   lhs: LHS,
   rhs: RHS,
@@ -452,7 +645,7 @@ export function accumulateOrderIndependentDiff<LHS = any, RHS = LHS>(
     }
     : undefined;
   const changes = observableDiff(lhs, rhs, observer, prefilter, true);
-  return accum ? accum : (changes.length ? changes : undefined);
+  return accum ? accum : changes.length ? changes : undefined;
 }
 
 /* -------------------------
@@ -505,6 +698,16 @@ function applyArrayChange(arr: any[], index: number, change: Diff) {
   return arr;
 }
 
+/**
+ * Applies a single {@link Diff} entry to a mutable target structure.
+ *
+ * @typeParam Target - Type of the structure being mutated.
+ * @param target - Object or array receiving the change.
+ * @param source - Either the source structure or the diff entry (legacy
+ * overload).
+ * @param change - Specific diff entry to apply. Optional when `source` already
+ * contains a diff record.
+ */
 export function applyChange<Target = any>(
   target: Target,
   source: any,
@@ -512,7 +715,8 @@ export function applyChange<Target = any>(
 ): void {
   // Legacy allowed applyChange(target, change) by passing change as 'source' if change undefined and source.kind valid.
   if (
-    typeof change === "undefined" && source &&
+    typeof change === "undefined" &&
+    source &&
     (validKinds as string[]).indexOf((source as any).kind) >= 0
   ) {
     change = source as Diff;
@@ -525,10 +729,10 @@ export function applyChange<Target = any>(
     const last = path.length > 0 ? path.length - 1 : 0;
     while (++i < last) {
       if (typeof it[path[i]] === "undefined") {
-        it[path[i]] = (typeof path[i + 1] !== "undefined" &&
-            typeof path[i + 1] === "number")
-          ? []
-          : {};
+        it[path[i]] =
+          typeof path[i + 1] !== "undefined" && typeof path[i + 1] === "number"
+            ? []
+            : {};
       }
       it = it[path[i]];
     }
@@ -605,6 +809,14 @@ function revertArrayChange(arr: any[], index: number, change: Diff) {
   return arr;
 }
 
+/**
+ * Reverts a {@link Diff} entry that was previously applied to a target.
+ *
+ * @typeParam Target - Type of the structure being mutated.
+ * @param target - Object or array receiving the reversal.
+ * @param source - Original structure containing reference values.
+ * @param change - Diff entry describing the prior mutation.
+ */
 export function revertChange<Target = any>(
   target: Target,
   source: any,
@@ -646,6 +858,15 @@ export function revertChange<Target = any>(
    High-level applyDiff
    ------------------------- */
 
+/**
+ * Computes and immediately applies differences from `source` onto `target`.
+ *
+ * @typeParam Target - Type of the structure being mutated.
+ * @typeParam Source - Type of the structure providing new values.
+ * @param target - Object or array receiving the changes.
+ * @param source - Structure containing the desired end state.
+ * @param filter - Optional predicate that decides which changes to apply.
+ */
 export function applyDiff<Target = any, Source = any>(
   target: Target,
   source: Source,
@@ -671,12 +892,14 @@ export function applyDiff<Target = any, Source = any>(
    We attach properties to the function object for the other helpers (diff/orderIndependentDiff etc).
    ------------------------- */
 
+/**
+ * Callable interface for the default export that mimics the original
+ * `deep-diff` function object, including attached helper utilities.
+ */
 export interface DeepDiffMain {
-  <LHS = any, RHS = LHS>(
-    lhs: LHS,
-    rhs: RHS,
-    prefilter?: PreFilter<LHS, RHS>,
-  ): Array<Diff<LHS, RHS>> | undefined;
+  <LHS = any, RHS = LHS>(lhs: LHS, rhs: RHS, prefilter?: PreFilter<LHS, RHS>):
+    | Array<Diff<LHS, RHS>>
+    | undefined;
   <LHS = any, RHS = LHS>(
     lhs: LHS,
     rhs: RHS,
@@ -696,6 +919,10 @@ export interface DeepDiffMain {
   DeepDiff?: any; // legacy alias
 }
 
+/**
+ * Default export implementation that behaves like the classic `deep-diff`
+ * function while exposing helper APIs as properties.
+ */
 const deepDiffMain = (function createMain(): any {
   const fn = function deepDiffWrapper<LHS = any, RHS = LHS>(
     lhs: LHS,

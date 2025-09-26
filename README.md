@@ -1,8 +1,12 @@
 # deep-diff
 
-A modern TypeScript/Deno implementation of the deep object difference algorithm, providing utilities for determining structural differences between objects and applying those differences.
+A modern TypeScript/Deno implementation of the deep object difference algorithm,
+providing utilities for determining structural differences between objects and
+applying those differences.
 
-This is a complete rewrite of the original [deep-diff](https://github.com/flitbit/diff) library, modernized for TypeScript and Deno while maintaining full compatibility with the legacy API.
+This is a complete rewrite of the original
+[deep-diff](https://github.com/flitbit/diff) library, modernized for TypeScript
+and Deno while maintaining full compatibility with the legacy API.
 
 ## Features
 
@@ -10,7 +14,8 @@ This is a complete rewrite of the original [deep-diff](https://github.com/flitbi
 - 👀 **Observable differences** - React to changes as they're discovered
 - 🔄 **Apply changes** - Transform objects by applying differences
 - 🎯 **Selective application** - Apply only specific changes with filters
-- 📊 **Order-independent comparison** - Compare arrays regardless of element order
+- 📊 **Order-independent comparison** - Compare arrays regardless of element
+  order
 - 🔒 **Type-safe** - Full TypeScript support with comprehensive type definitions
 - 🚀 **Modern runtime** - Built for Deno with ES modules
 
@@ -42,14 +47,14 @@ import deepDiff from "jsr:@fry69/deep-diff";
 const oldObj = {
   name: "John",
   age: 30,
-  hobbies: ["reading", "gaming"]
+  hobbies: ["reading", "gaming"],
 };
 
 const newObj = {
   name: "John",
   age: 31,
   hobbies: ["reading", "gaming", "cooking"],
-  city: "New York"
+  city: "New York",
 };
 
 // Find differences
@@ -78,7 +83,7 @@ console.log(source); // { name: "Alice", score: 95, level: 1 }
 
 // Or apply individual changes
 const changes = deepDiff(source, target);
-changes?.forEach(change => {
+changes?.forEach((change) => {
   deepDiff.applyChange(source, target, change);
 });
 ```
@@ -129,11 +134,11 @@ Each difference has a `kind` property indicating the type of change:
 
 ```typescript
 // Only compare specific properties
-const prefilter = (path: any[], key: any) => key !== 'timestamp';
+const prefilter = (path: any[], key: any) => key !== "timestamp";
 const diff = deepDiff(obj1, obj2, prefilter);
 
 // Apply only certain types of changes
-const filter = (target, source, change) => change.kind !== 'D'; // Skip deletions
+const filter = (target, source, change) => change.kind !== "D"; // Skip deletions
 deepDiff.applyDiff(target, source, filter);
 ```
 
@@ -149,11 +154,12 @@ const orderIndepDiff = deepDiff.orderIndependentDiff(arr1, arr2); // undefined (
 
 ## Migration from Legacy deep-diff
 
-This implementation maintains full API compatibility with the original deep-diff library. Simply replace your import and the code should work identically:
+This implementation maintains full API compatibility with the original deep-diff
+library. Simply replace your import and the code should work identically:
 
 ```typescript
 // Before
-const diff = require('deep-diff');
+const diff = require("deep-diff");
 
 // After
 import deepDiff from "jsr:@fry69/deep-diff";
@@ -166,4 +172,7 @@ MIT
 
 ## History
 
-This is a modern TypeScript rewrite of the original [deep-diff](https://github.com/flitbit/diff) library by Phillip Clark. The original algorithm and behavior have been faithfully preserved while adding TypeScript support and modernizing the codebase for current JavaScript runtimes.
+This is a modern TypeScript rewrite of the original
+[deep-diff](https://github.com/flitbit/diff) library by Phillip Clark. The
+original algorithm and behavior have been faithfully preserved while adding
+TypeScript support and modernizing the codebase for current JavaScript runtimes.
