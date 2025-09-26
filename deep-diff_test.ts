@@ -1,5 +1,5 @@
 // deno-lint-ignore-file no-explicit-any
-import { assertEquals, assertStrictEquals, assertNotEquals } from "@std/assert";
+import { assertEquals, assertNotEquals, assertStrictEquals } from "@std/assert";
 import deepDiffTS, { type Diff } from "./deep-diff.ts";
 
 Deno.test("Basic diff functionality", () => {
@@ -89,8 +89,9 @@ Deno.test("Edge cases - primitives", () => {
 
   const diff4 = deepDiffTS(NaN, 0);
   assertEquals(diff4?.length, 1);
-  if (diff4 && "lhs" in diff4[0])
+  if (diff4 && "lhs" in diff4[0]) {
     assertEquals(Number.isNaN((diff4[0] as any).lhs), true);
+  }
 });
 
 Deno.test("Date differences", () => {
@@ -141,8 +142,10 @@ Deno.test("observableDiff method", () => {
   const rhs = { a: 1, b: 3, c: 4 };
 
   const changes: Diff[] = [];
-  const result = deepDiffTS.observableDiff(lhs, rhs, (change) =>
-    changes.push(change)
+  const result = deepDiffTS.observableDiff(
+    lhs,
+    rhs,
+    (change) => changes.push(change),
   );
 
   assertEquals(Array.isArray(result), true);
@@ -224,14 +227,14 @@ Deno.test("orderIndepHash function", () => {
   // Objects with same content should have same hash
   assertEquals(
     deepDiffTS.orderIndepHash(obj1),
-    deepDiffTS.orderIndepHash(obj2)
+    deepDiffTS.orderIndepHash(obj2),
   );
 
   // Different objects should have different hash
   const obj3 = { a: 1, b: 3 };
   assertNotEquals(
     deepDiffTS.orderIndepHash(obj1),
-    deepDiffTS.orderIndepHash(obj3)
+    deepDiffTS.orderIndepHash(obj3),
   );
 });
 
@@ -269,14 +272,14 @@ Deno.test("Math object comparison", () => {
 Deno.test("toString edge cases", () => {
   // When toString is not a function
   const lhs = {
-    left: 'yes',
-    right: 'no',
+    left: "yes",
+    right: "no",
   };
   const rhs = {
     left: {
-      toString: true,  // toString is not a function
+      toString: true, // toString is not a function
     },
-    right: 'no',
+    right: "no",
   };
 
   // Should not throw a TypeError
@@ -327,8 +330,8 @@ Deno.test("Regression test for issue #83 - null comparison", () => {
 
 Deno.test("Array change application (issue #35)", () => {
   // Should be able to apply diffs between two top level arrays
-  const lhs = ['a', 'a', 'a'];
-  const rhs = ['a'];
+  const lhs = ["a", "a", "a"];
+  const rhs = ["a"];
 
   const differences = deepDiffTS(lhs, rhs);
   assertEquals(Array.isArray(differences), true);
@@ -337,32 +340,32 @@ Deno.test("Array change application (issue #35)", () => {
     differences.forEach((change: Diff) => {
       deepDiffTS.applyChange(lhs, rhs, change);
     });
-    assertEquals(lhs, ['a']);
+    assertEquals(lhs, ["a"]);
   }
 });
 
 Deno.test("Complex nested structures", () => {
   // Test more complex nested object/array combinations (issue #10 regression)
   const lhs = {
-    id: 'Release',
+    id: "Release",
     phases: [{
-      id: 'Phase1',
-      tasks: [{ id: 'Task1' }, { id: 'Task2' }]
+      id: "Phase1",
+      tasks: [{ id: "Task1" }, { id: "Task2" }],
     }, {
-      id: 'Phase2',
-      tasks: [{ id: 'Task3' }]
-    }]
+      id: "Phase2",
+      tasks: [{ id: "Task3" }],
+    }],
   };
 
   const rhs = {
-    id: 'Release',
+    id: "Release",
     phases: [{
-      id: 'Phase2',
-      tasks: [{ id: 'Task3' }]
+      id: "Phase2",
+      tasks: [{ id: "Task3" }],
     }, {
-      id: 'Phase1',
-      tasks: [{ id: 'Task1' }, { id: 'Task2' }]
-    }]
+      id: "Phase1",
+      tasks: [{ id: "Task1" }, { id: "Task2" }],
+    }],
   };
 
   const diff = deepDiffTS(lhs, rhs);
@@ -381,31 +384,31 @@ Deno.test("Order independent hash comprehensive testing", () => {
 
   // Different simple types should have different hashes
   assertNotEquals(hash(1), hash(-20));
-  assertNotEquals(hash('foo'), hash(45));
-  assertNotEquals(hash('pie'), hash('something else'));
+  assertNotEquals(hash("foo"), hash(45));
+  assertNotEquals(hash("pie"), hash("something else"));
   assertNotEquals(hash(1.3332), hash(1));
   assertNotEquals(hash(1), hash(null));
   assertNotEquals(hash(true), hash(2));
-  assertNotEquals(hash(false), hash('flooog'));
+  assertNotEquals(hash(false), hash("flooog"));
 
   // Different complex types should have different hashes
-  assertNotEquals(hash('some string'), hash({ key: 'some string' }));
+  assertNotEquals(hash("some string"), hash({ key: "some string" }));
   assertNotEquals(hash(1), hash([1]));
-  assertNotEquals(hash('string'), hash(['string']));
+  assertNotEquals(hash("string"), hash(["string"]));
   assertNotEquals(hash(true), hash({ key: true }));
 
   // Different arrays should have different hashes
   assertNotEquals(hash([1, 2, 3]), hash([1, 2]));
-  assertNotEquals(hash([1, 4, 5, 6]), hash(['foo', 1, true, undefined]));
+  assertNotEquals(hash([1, 4, 5, 6]), hash(["foo", 1, true, undefined]));
   assertNotEquals(hash([1, 4, 6]), hash([1, 4, 7]));
-  assertNotEquals(hash([1, 3, 5]), hash(['1', '3', '5']));
+  assertNotEquals(hash([1, 3, 5]), hash(["1", "3", "5"]));
 
   // Different objects should have different hashes
-  assertNotEquals(hash({ key: 'value' }), hash({ other: 'value' }));
-  assertNotEquals(hash({ a: { b: 'c' } }), hash({ a: 'b' }));
+  assertNotEquals(hash({ key: "value" }), hash({ other: "value" }));
+  assertNotEquals(hash({ a: { b: "c" } }), hash({ a: "b" }));
 
   // Arrays and objects should have different hashes
-  assertNotEquals(hash([1, true, '1']), hash({ a: 1, b: true, c: '1' }));
+  assertNotEquals(hash([1, true, "1"]), hash({ a: 1, b: true, c: "1" }));
 
   // Pathological cases should have different hashes
   assertNotEquals(hash(undefined), hash(null));
@@ -413,9 +416,9 @@ Deno.test("Order independent hash comprehensive testing", () => {
   assertNotEquals(hash(0), hash(null));
   assertNotEquals(hash(0), hash(false));
   assertNotEquals(hash(0), hash([]));
-  assertNotEquals(hash(''), hash([]));
-  assertNotEquals(hash(3.22), hash('3.22'));
-  assertNotEquals(hash(true), hash('true'));
+  assertNotEquals(hash(""), hash([]));
+  assertNotEquals(hash(3.22), hash("3.22"));
+  assertNotEquals(hash(true), hash("true"));
   assertNotEquals(hash(false), hash(0));
   assertNotEquals(hash([]), hash({}));
   assertNotEquals(hash({}), hash(undefined));
@@ -423,17 +426,20 @@ Deno.test("Order independent hash comprehensive testing", () => {
 
   // Order independent - same hashes for same content in different order
   assertEquals(hash([1, 2, 3]), hash([3, 2, 1]));
-  assertEquals(hash(['hi', true, 9.4]), hash([true, 'hi', 9.4]));
-  assertEquals(hash({ foo: 'bar', foz: 'baz' }), hash({ foz: 'baz', foo: 'bar' }));
+  assertEquals(hash(["hi", true, 9.4]), hash([true, "hi", 9.4]));
+  assertEquals(
+    hash({ foo: "bar", foz: "baz" }),
+    hash({ foz: "baz", foo: "bar" }),
+  );
 
   // Complex nested structures should have same hash regardless of order
   const obj1 = {
-    foo: 'bar',
-    faz: [1, 'pie', { food: 'yum' }]
+    foo: "bar",
+    faz: [1, "pie", { food: "yum" }],
   };
   const obj2 = {
-    faz: ['pie', { food: 'yum' }, 1],
-    foo: 'bar'
+    faz: ["pie", { food: "yum" }, 1],
+    foo: "bar",
   };
   assertEquals(hash(obj1), hash(obj2));
 });
@@ -449,12 +455,12 @@ Deno.test("Order independent diff comprehensive testing", () => {
 
   // Complex objects with arrays in different order should be equal
   const obj1 = {
-    foo: 'bar',
-    faz: [1, 'pie', { food: 'yum' }]
+    foo: "bar",
+    faz: [1, "pie", { food: "yum" }],
   };
   const obj2 = {
-    faz: ['pie', { food: 'yum' }, 1],
-    foo: 'bar'
+    faz: ["pie", { food: "yum" }, 1],
+    foo: "bar",
   };
   const diff3 = deepDiffTS.orderIndependentDiff(obj1, obj2);
   assertEquals(diff3, undefined);
@@ -467,10 +473,10 @@ Deno.test("Order independent diff comprehensive testing", () => {
 
 Deno.test("observableDiff with change application (issue #115)", () => {
   // Test observableDiff can apply changes during observation
-  const thing1 = 'this';
-  const thing2 = 'that';
-  const thing3 = 'other';
-  const thing4 = 'another';
+  const thing1 = "this";
+  const thing2 = "that";
+  const thing3 = "other";
+  const thing4 = "another";
 
   const oldArray = [thing1, thing2, thing3, thing4];
   const newArray = [thing1, thing2];
@@ -492,12 +498,12 @@ Deno.test("undefined vs undefined comparison (issue #111)", () => {
 Deno.test("Different object types comparison", () => {
   // Test comparing different types of keyless objects
   const comparandTuples: [string, any][] = [
-    ['an array', { key: [] }],
-    ['an object', { key: {} }],
-    ['a date', { key: new Date() }],
-    ['a null', { key: null }],
-    ['a regexp literal', { key: /a/ }],
-    ['Math', { key: Math }]
+    ["an array", { key: [] }],
+    ["an object", { key: {} }],
+    ["a date", { key: new Date() }],
+    ["a null", { key: null }],
+    ["a regexp literal", { key: /a/ }],
+    ["Math", { key: Math }],
   ];
 
   comparandTuples.forEach(([lhsName, lhsObj]) => {
@@ -505,8 +511,11 @@ Deno.test("Different object types comparison", () => {
       if (lhsName === rhsName) return;
 
       const diff = deepDiffTS(lhsObj, rhsObj);
-      assertEquals(Array.isArray(diff), true,
-        `Comparing ${lhsName} to ${rhsName} should show differences`);
+      assertEquals(
+        Array.isArray(diff),
+        true,
+        `Comparing ${lhsName} to ${rhsName} should show differences`,
+      );
       assertEquals(diff?.length, 1);
       assertEquals(diff?.[0].kind, "E");
     });
@@ -522,8 +531,8 @@ Deno.test("Regex comparison edge cases", () => {
   assertEquals(diff?.length, 1);
   assertEquals(diff?.[0].kind, "E");
   assertEquals(diff?.[0].path, undefined); // top-level comparison
-  assertEquals((diff?.[0] as any).lhs, '/foo/');
-  assertEquals((diff?.[0] as any).rhs, '/foo/i');
+  assertEquals((diff?.[0] as any).lhs, "/foo/");
+  assertEquals((diff?.[0] as any).rhs, "/foo/i");
 });
 
 Deno.test("Array with nested objects (issue #124)", () => {
