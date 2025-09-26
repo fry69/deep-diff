@@ -1,3 +1,7 @@
+### 0.1.5
+
+- convert publish workflow to use Deno
+
 ### 0.1.4
 
 - copy publish workflow from jsr.io 1:1

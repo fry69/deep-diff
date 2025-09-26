@@ -1,4 +1,4 @@
-name: Publish
+name: Publish JSR
 on:
   push:
     branches:
@@ -7,10 +7,19 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+
     permissions:
       contents: read
       id-token: write
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          cache: true
+
       - name: Publish package
-        run: npx jsr publish
+        run: deno publish
