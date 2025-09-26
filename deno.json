@@ -1,6 +1,6 @@
 {
   "name": "@fry69/deep-diff",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "exports": "./deep-diff.ts",
   "tasks": {
     "test": "deno test deep-diff_test.ts",

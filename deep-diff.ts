@@ -572,6 +572,17 @@ export function accumulateDiff<LHS = any, RHS = LHS>(
   lhs: LHS,
   rhs: RHS,
   prefilter?: PreFilter<LHS, RHS>,
+): Array<Diff<LHS, RHS>> | undefined;
+export function accumulateDiff<LHS = any, RHS = LHS>(
+  lhs: LHS,
+  rhs: RHS,
+  prefilter: PreFilter<LHS, RHS> | undefined,
+  accum: Accumulator<LHS, RHS>,
+): Accumulator<LHS, RHS>;
+export function accumulateDiff<LHS = any, RHS = LHS>(
+  lhs: LHS,
+  rhs: RHS,
+  prefilter?: PreFilter<LHS, RHS>,
   accum?: Accumulator<LHS, RHS>,
 ): Array<Diff<LHS, RHS>> | Accumulator<LHS, RHS> | undefined {
   const observer: Observer<LHS, RHS> | undefined = accum
@@ -633,6 +644,17 @@ export function orderIndependentDeepDiff<LHS = any, RHS = LHS>(
  * @returns The accumulator when provided, otherwise the array of diffs or
  * `undefined` when no changes exist.
  */
+export function accumulateOrderIndependentDiff<LHS = any, RHS = LHS>(
+  lhs: LHS,
+  rhs: RHS,
+  prefilter?: PreFilter<LHS, RHS>,
+): Array<Diff<LHS, RHS>> | undefined;
+export function accumulateOrderIndependentDiff<LHS = any, RHS = LHS>(
+  lhs: LHS,
+  rhs: RHS,
+  prefilter: PreFilter<LHS, RHS> | undefined,
+  accum: Accumulator<LHS, RHS>,
+): Accumulator<LHS, RHS>;
 export function accumulateOrderIndependentDiff<LHS = any, RHS = LHS>(
   lhs: LHS,
   rhs: RHS,
@@ -930,7 +952,10 @@ const deepDiffMain = (function createMain(): any {
     prefilter?: PreFilter<LHS, RHS>,
     acc?: Accumulator<LHS, RHS>,
   ): Array<Diff<LHS, RHS>> | Accumulator<LHS, RHS> | undefined {
-    return accumulateDiff(lhs, rhs, prefilter, acc);
+    if (typeof acc !== "undefined") {
+      return accumulateDiff(lhs, rhs, prefilter, acc);
+    }
+    return accumulateDiff(lhs, rhs, prefilter);
   };
 
   // Attach helpers as properties to mimic legacy module's API

@@ -196,6 +196,41 @@ Deno.test("accumulator pattern", () => {
   assertEquals(accumulator.length, 2);
 });
 
+Deno.test("diff property is iterable after guard", () => {
+  interface Model {
+    name: string;
+    year: number;
+    tags?: string[];
+  }
+
+  const oldModel: Model = {
+    name: "Ada",
+    year: 1815,
+    tags: ["math", "logic"],
+  };
+
+  const newModel: Model = {
+    name: "Ada Lovelace",
+    year: 1816,
+    tags: ["math", "computing"],
+  };
+
+  const diffs = deepDiffTS.diff(oldModel, newModel);
+  const paths: string[] = [];
+
+  if (diffs) {
+    for (const change of diffs) {
+      if (change.path) {
+        paths.push(change.path.join("."));
+      }
+    }
+  }
+
+  assertEquals(paths.includes("name"), true);
+  assertEquals(paths.includes("year"), true);
+  assertEquals(paths.includes("tags.1"), true);
+});
+
 Deno.test("prefilter support", () => {
   const lhs = { a: 1, b: 2, c: 3 };
   const rhs = { a: 1, b: 3, c: 4 };
