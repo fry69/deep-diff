@@ -1,3 +1,7 @@
+### 0.1.8
+
+- update JSDoc comments
+
 ### 0.1.7
 
 - fix iterator regression

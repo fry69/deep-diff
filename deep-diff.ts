@@ -565,8 +565,13 @@ export function observableDiff<LHS = any, RHS = LHS>(
  * @param rhs - Value being compared to the baseline.
  * @param prefilter - Optional prefilter to skip or normalize keys.
  * @param accum - Optional accumulator that receives each diff entry.
- * @returns The accumulator when provided, otherwise the array of diffs or
- * `undefined` when no changes exist.
+ * @returns When `accum` is omitted, returns an array of {@link Diff}
+ * entries or `undefined` when the structures are equivalent. When
+ * `accum` is provided, the same accumulator instance is returned after
+ * being populated.
+ * @remarks The overloads mirror the classic CommonJS behaviour while enabling
+ * TypeScript to infer an iterable array result when the accumulator is not
+ * supplied.
  */
 export function accumulateDiff<LHS = any, RHS = LHS>(
   lhs: LHS,
@@ -641,8 +646,12 @@ export function orderIndependentDeepDiff<LHS = any, RHS = LHS>(
  * @param rhs - Value being compared to the baseline.
  * @param prefilter - Optional prefilter to skip or normalize keys.
  * @param accum - Optional accumulator that receives each diff entry.
- * @returns The accumulator when provided, otherwise the array of diffs or
- * `undefined` when no changes exist.
+ * @returns When `accum` is omitted, returns an array of {@link Diff}
+ * entries or `undefined` when the structures are equivalent. When
+ * `accum` is provided, the same accumulator instance is returned after
+ * being populated.
+ * @remarks Behaviour matches {@link accumulateDiff}, with the addition that
+ * array ordering differences are suppressed.
  */
 export function accumulateOrderIndependentDiff<LHS = any, RHS = LHS>(
   lhs: LHS,
@@ -917,6 +926,11 @@ export function applyDiff<Target = any, Source = any>(
 /**
  * Callable interface for the default export that mimics the original
  * `deep-diff` function object, including attached helper utilities.
+ *
+ * @remarks The primary overload returns an array of {@link Diff} entries (or
+ * `undefined`) when invoked with up to three arguments. Supplying the optional
+ * accumulator parameter reuses and returns that accumulator for legacy API
+ * compatibility.
  */
 export interface DeepDiffMain {
   <LHS = any, RHS = LHS>(lhs: LHS, rhs: RHS, prefilter?: PreFilter<LHS, RHS>):
@@ -944,6 +958,10 @@ export interface DeepDiffMain {
 /**
  * Default export implementation that behaves like the classic `deep-diff`
  * function while exposing helper APIs as properties.
+ *
+ * @remarks The runtime implementation forwards to {@link accumulateDiff}, so
+ * callers receive the same accumulator-aware behaviour described by
+ * {@link DeepDiffMain}.
  */
 const deepDiffMain = (function createMain(): any {
   const fn = function deepDiffWrapper<LHS = any, RHS = LHS>(
