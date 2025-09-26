@@ -271,7 +271,10 @@ export function getOrderIndependentHash(object: any): number {
  * @param path - Optional path where the value resides.
  * @param rhs - The value that was introduced.
  */
-function makeDiffNew<RHS>(path: Path | undefined, rhs: RHS): DiffNew<RHS> {
+export function makeDiffNew<RHS>(
+  path: Path | undefined,
+  rhs: RHS,
+): DiffNew<RHS> {
   const d: DiffNew<RHS> = { kind: "N", rhs };
   if (path && path.length) d.path = path;
   return d;
@@ -282,7 +285,7 @@ function makeDiffNew<RHS>(path: Path | undefined, rhs: RHS): DiffNew<RHS> {
  * @param path - Optional path that identifies the removed value.
  * @param lhs - The value that was removed.
  */
-function makeDiffDeleted<LHS>(
+export function makeDiffDeleted<LHS>(
   path: Path | undefined,
   lhs: LHS,
 ): DiffDeleted<LHS> {
@@ -297,7 +300,7 @@ function makeDiffDeleted<LHS>(
  * @param lhs - The original value.
  * @param rhs - The replacement value.
  */
-function makeDiffEdit<LHS, RHS>(
+export function makeDiffEdit<LHS, RHS>(
   path: Path | undefined,
   lhs: LHS,
   rhs: RHS,
@@ -313,7 +316,7 @@ function makeDiffEdit<LHS, RHS>(
  * @param index - Index within the array that changed.
  * @param item - The nested diff describing the array slot change.
  */
-function makeDiffArray<LHS, RHS>(
+export function makeDiffArray<LHS, RHS>(
   path: Path | undefined,
   index: number,
   item: Diff<LHS, RHS>,
@@ -956,12 +959,8 @@ export interface DeepDiffMain {
 }
 
 /**
- * Default export implementation that behaves like the classic `deep-diff`
- * function while exposing helper APIs as properties.
- *
- * @remarks The runtime implementation forwards to {@link accumulateDiff}, so
- * callers receive the same accumulator-aware behaviour described by
- * {@link DeepDiffMain}.
+ * Builds the callable default export while attaching helper utilities that
+ * mirror the original CommonJS package API.
  */
 const deepDiffMain = (function createMain(): any {
   const fn = function deepDiffWrapper<LHS = any, RHS = LHS>(
@@ -1009,15 +1008,41 @@ const deepDiffMain = (function createMain(): any {
 })() as DeepDiffMain;
 
 // Named exports for convenience & modern usage
+/**
+ * Legacy alias for {@link accumulateDiff} retained for backwards compatibility
+ * with the CommonJS package API.
+ */
+export const diff: typeof accumulateDiff = accumulateDiff;
+
+/**
+ * Legacy alias for {@link accumulateOrderIndependentDiff} that mirrors the
+ * property exposed on the CommonJS function export.
+ */
+export const orderIndependentDiff: typeof accumulateOrderIndependentDiff =
+  accumulateOrderIndependentDiff;
+
+/**
+ * Legacy alias for {@link getOrderIndependentHash} kept to match the original
+ * helper attachment.
+ */
+export const orderIndepHash: typeof getOrderIndependentHash =
+  getOrderIndependentHash;
+
+/**
+ * Legacy alias for {@link observableDiff} retaining the `observableDiffFn`
+ * naming convention used by the original documentation.
+ */
+export const observableDiffFn: typeof observableDiff = observableDiff;
+
+/**
+ * Legacy alias for {@link orderIndependentDeepDiff} that preserves the
+ * `orderIndependentObservableDiff` helper name.
+ */
+export const orderIndependentObservableDiff: typeof orderIndependentDeepDiff =
+  orderIndependentDeepDiff;
+
+/**
+ * Primary entry point that behaves like the legacy `deep-diff` function object
+ * while exposing helper APIs as properties.
+ */
 export default deepDiffMain as DeepDiffMain;
-export {
-  accumulateDiff as diff,
-  accumulateOrderIndependentDiff as orderIndependentDiff,
-  getOrderIndependentHash as orderIndepHash,
-  makeDiffArray,
-  makeDiffDeleted,
-  makeDiffEdit,
-  makeDiffNew,
-  observableDiff as observableDiffFn,
-  orderIndependentDeepDiff as orderIndependentObservableDiff,
-};

@@ -1,3 +1,7 @@
+### 0.1.9
+
+- tweaked exports
+
 ### 0.1.8
 
 - update JSDoc comments
