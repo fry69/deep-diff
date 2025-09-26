@@ -240,3 +240,302 @@ Deno.test("isConflict function", () => {
   assertEquals(typeof deepDiffTS.isConflict, "function");
   assertEquals(deepDiffTS.isConflict(), false);
 });
+
+// Additional test cases found in legacy v1.0.2 test suite
+
+Deno.test("Object.create(null) handling", () => {
+  // Objects without prototype should work properly
+  const lhs = Object.create(null);
+  const rhs = { foo: undefined };
+
+  const diff = deepDiffTS(lhs, rhs);
+  assertEquals(Array.isArray(diff), true);
+  assertEquals(diff?.length, 1);
+  assertEquals(diff?.[0].kind, "N");
+  assertEquals(diff?.[0].path, ["foo"]);
+});
+
+Deno.test("Math object comparison", () => {
+  // Math object should be treated as special type
+  const lhs = { key: Math };
+  const rhs = { key: {} };
+
+  const diff = deepDiffTS(lhs, rhs);
+  assertEquals(Array.isArray(diff), true);
+  assertEquals(diff?.length, 1);
+  assertEquals(diff?.[0].kind, "E");
+});
+
+Deno.test("toString edge cases", () => {
+  // When toString is not a function
+  const lhs = {
+    left: 'yes',
+    right: 'no',
+  };
+  const rhs = {
+    left: {
+      toString: true,  // toString is not a function
+    },
+    right: 'no',
+  };
+
+  // Should not throw a TypeError
+  const diff = deepDiffTS(lhs, rhs);
+  assertEquals(diff?.length, 1);
+  assertEquals(diff?.[0].kind, "E");
+  assertEquals(diff?.[0].path, ["left"]);
+});
+
+Deno.test("Undefined property handling (issue #70)", () => {
+  // Should detect difference with undefined property on lhs
+  const diff1 = deepDiffTS({ foo: undefined }, {});
+  assertEquals(Array.isArray(diff1), true);
+  assertEquals(diff1?.length, 1);
+  assertEquals(diff1?.[0].kind, "D");
+  assertEquals(diff1?.[0].path, ["foo"]);
+  assertEquals((diff1?.[0] as any).lhs, undefined);
+
+  // Should detect difference with undefined property on rhs
+  const diff2 = deepDiffTS({}, { foo: undefined });
+  assertEquals(Array.isArray(diff2), true);
+  assertEquals(diff2?.length, 1);
+  assertEquals(diff2?.[0].kind, "N");
+  assertEquals(diff2?.[0].path, ["foo"]);
+  assertEquals((diff2?.[0] as any).rhs, undefined);
+
+  // Should not detect difference with two undefined property values (issue #98)
+  const diff3 = deepDiffTS({ foo: undefined }, { foo: undefined });
+  assertEquals(diff3, undefined);
+});
+
+Deno.test("Regression test for issue #102 - null vs undefined", () => {
+  // Should not throw a TypeError when comparing null to undefined
+  const diff = deepDiffTS(null, undefined);
+  assertEquals(Array.isArray(diff), true);
+  assertEquals(diff?.length, 1);
+  assertEquals(diff?.[0].kind, "D");
+  assertEquals((diff?.[0] as any).lhs, null);
+});
+
+Deno.test("Regression test for issue #83 - null comparison", () => {
+  // Should not detect difference when both properties are null
+  const lhs = { date: null };
+  const rhs = { date: null };
+  const diff = deepDiffTS(lhs, rhs);
+  assertEquals(diff, undefined);
+});
+
+Deno.test("Array change application (issue #35)", () => {
+  // Should be able to apply diffs between two top level arrays
+  const lhs = ['a', 'a', 'a'];
+  const rhs = ['a'];
+
+  const differences = deepDiffTS(lhs, rhs);
+  assertEquals(Array.isArray(differences), true);
+
+  if (differences) {
+    differences.forEach((change: Diff) => {
+      deepDiffTS.applyChange(lhs, rhs, change);
+    });
+    assertEquals(lhs, ['a']);
+  }
+});
+
+Deno.test("Complex nested structures", () => {
+  // Test more complex nested object/array combinations (issue #10 regression)
+  const lhs = {
+    id: 'Release',
+    phases: [{
+      id: 'Phase1',
+      tasks: [{ id: 'Task1' }, { id: 'Task2' }]
+    }, {
+      id: 'Phase2',
+      tasks: [{ id: 'Task3' }]
+    }]
+  };
+
+  const rhs = {
+    id: 'Release',
+    phases: [{
+      id: 'Phase2',
+      tasks: [{ id: 'Task3' }]
+    }, {
+      id: 'Phase1',
+      tasks: [{ id: 'Task1' }, { id: 'Task2' }]
+    }]
+  };
+
+  const diff = deepDiffTS(lhs, rhs);
+  assertEquals(Array.isArray(diff), true);
+  assertEquals(diff?.length, 6); // Should detect all nested differences
+
+  // Test that differences can be applied
+  const target = JSON.parse(JSON.stringify(lhs)); // deep copy
+  deepDiffTS.applyDiff(target, rhs);
+  assertEquals(JSON.stringify(target), JSON.stringify(rhs));
+});
+
+Deno.test("Order independent hash comprehensive testing", () => {
+  // Test that hash function gives different values for different objects
+  const hash = deepDiffTS.orderIndepHash;
+
+  // Different simple types should have different hashes
+  assertNotEquals(hash(1), hash(-20));
+  assertNotEquals(hash('foo'), hash(45));
+  assertNotEquals(hash('pie'), hash('something else'));
+  assertNotEquals(hash(1.3332), hash(1));
+  assertNotEquals(hash(1), hash(null));
+  assertNotEquals(hash(true), hash(2));
+  assertNotEquals(hash(false), hash('flooog'));
+
+  // Different complex types should have different hashes
+  assertNotEquals(hash('some string'), hash({ key: 'some string' }));
+  assertNotEquals(hash(1), hash([1]));
+  assertNotEquals(hash('string'), hash(['string']));
+  assertNotEquals(hash(true), hash({ key: true }));
+
+  // Different arrays should have different hashes
+  assertNotEquals(hash([1, 2, 3]), hash([1, 2]));
+  assertNotEquals(hash([1, 4, 5, 6]), hash(['foo', 1, true, undefined]));
+  assertNotEquals(hash([1, 4, 6]), hash([1, 4, 7]));
+  assertNotEquals(hash([1, 3, 5]), hash(['1', '3', '5']));
+
+  // Different objects should have different hashes
+  assertNotEquals(hash({ key: 'value' }), hash({ other: 'value' }));
+  assertNotEquals(hash({ a: { b: 'c' } }), hash({ a: 'b' }));
+
+  // Arrays and objects should have different hashes
+  assertNotEquals(hash([1, true, '1']), hash({ a: 1, b: true, c: '1' }));
+
+  // Pathological cases should have different hashes
+  assertNotEquals(hash(undefined), hash(null));
+  assertNotEquals(hash(0), hash(undefined));
+  assertNotEquals(hash(0), hash(null));
+  assertNotEquals(hash(0), hash(false));
+  assertNotEquals(hash(0), hash([]));
+  assertNotEquals(hash(''), hash([]));
+  assertNotEquals(hash(3.22), hash('3.22'));
+  assertNotEquals(hash(true), hash('true'));
+  assertNotEquals(hash(false), hash(0));
+  assertNotEquals(hash([]), hash({}));
+  assertNotEquals(hash({}), hash(undefined));
+  assertNotEquals(hash([]), hash([0]));
+
+  // Order independent - same hashes for same content in different order
+  assertEquals(hash([1, 2, 3]), hash([3, 2, 1]));
+  assertEquals(hash(['hi', true, 9.4]), hash([true, 'hi', 9.4]));
+  assertEquals(hash({ foo: 'bar', foz: 'baz' }), hash({ foz: 'baz', foo: 'bar' }));
+
+  // Complex nested structures should have same hash regardless of order
+  const obj1 = {
+    foo: 'bar',
+    faz: [1, 'pie', { food: 'yum' }]
+  };
+  const obj2 = {
+    faz: ['pie', { food: 'yum' }, 1],
+    foo: 'bar'
+  };
+  assertEquals(hash(obj1), hash(obj2));
+});
+
+Deno.test("Order independent diff comprehensive testing", () => {
+  // Simple arrays in different order should be equal
+  const diff1 = deepDiffTS.orderIndependentDiff([1, 2, 3], [1, 3, 2]);
+  assertEquals(diff1, undefined);
+
+  // Arrays with repeated elements should work
+  const diff2 = deepDiffTS.orderIndependentDiff([1, 1, 2], [1, 2, 1]);
+  assertEquals(diff2, undefined);
+
+  // Complex objects with arrays in different order should be equal
+  const obj1 = {
+    foo: 'bar',
+    faz: [1, 'pie', { food: 'yum' }]
+  };
+  const obj2 = {
+    faz: ['pie', { food: 'yum' }, 1],
+    foo: 'bar'
+  };
+  const diff3 = deepDiffTS.orderIndependentDiff(obj1, obj2);
+  assertEquals(diff3, undefined);
+
+  // Non-equal arrays should still show differences
+  const diff4 = deepDiffTS.orderIndependentDiff([1, 2, 3], [2, 2, 3]);
+  assertNotEquals(diff4, undefined);
+  assertEquals(Array.isArray(diff4), true);
+});
+
+Deno.test("observableDiff with change application (issue #115)", () => {
+  // Test observableDiff can apply changes during observation
+  const thing1 = 'this';
+  const thing2 = 'that';
+  const thing3 = 'other';
+  const thing4 = 'another';
+
+  const oldArray = [thing1, thing2, thing3, thing4];
+  const newArray = [thing1, thing2];
+  const targetArray = [...oldArray]; // copy
+
+  deepDiffTS.observableDiff(oldArray, newArray, (change: Diff) => {
+    deepDiffTS.applyChange(targetArray, newArray, change);
+  });
+
+  assertEquals(targetArray, newArray);
+});
+
+Deno.test("undefined vs undefined comparison (issue #111)", () => {
+  // Comparing undefined to undefined should return undefined (no differences)
+  const diff = deepDiffTS(undefined, undefined);
+  assertEquals(diff, undefined);
+});
+
+Deno.test("Different object types comparison", () => {
+  // Test comparing different types of keyless objects
+  const comparandTuples: [string, any][] = [
+    ['an array', { key: [] }],
+    ['an object', { key: {} }],
+    ['a date', { key: new Date() }],
+    ['a null', { key: null }],
+    ['a regexp literal', { key: /a/ }],
+    ['Math', { key: Math }]
+  ];
+
+  comparandTuples.forEach(([lhsName, lhsObj]) => {
+    comparandTuples.forEach(([rhsName, rhsObj]) => {
+      if (lhsName === rhsName) return;
+
+      const diff = deepDiffTS(lhsObj, rhsObj);
+      assertEquals(Array.isArray(diff), true,
+        `Comparing ${lhsName} to ${rhsName} should show differences`);
+      assertEquals(diff?.length, 1);
+      assertEquals(diff?.[0].kind, "E");
+    });
+  });
+});
+
+Deno.test("Regex comparison edge cases", () => {
+  // Should properly compare regex instances with different flags
+  const lhs = /foo/;
+  const rhs = /foo/i;
+
+  const diff = deepDiffTS(lhs, rhs);
+  assertEquals(diff?.length, 1);
+  assertEquals(diff?.[0].kind, "E");
+  assertEquals(diff?.[0].path, undefined); // top-level comparison
+  assertEquals((diff?.[0] as any).lhs, '/foo/');
+  assertEquals((diff?.[0] as any).rhs, '/foo/i');
+});
+
+Deno.test("Array with nested objects (issue #124)", () => {
+  // Test array containing objects with changes
+  const left = { key: [{ A: 0, B: 1 }, { A: 2, B: 3 }] };
+  const right = { key: [{ A: 9, B: 1 }, { A: 2, B: 3 }] };
+
+  const differences = deepDiffTS(left, right);
+  assertEquals(Array.isArray(differences), true);
+  assertEquals(differences?.length, 1);
+  assertEquals(differences?.[0].kind, "E");
+  assertEquals(differences?.[0].path, ["key", 0, "A"]);
+  assertEquals((differences?.[0] as any).lhs, 0);
+  assertEquals((differences?.[0] as any).rhs, 9);
+});
