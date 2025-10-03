@@ -1,3 +1,6 @@
+[![JSR](https://jsr.io/badges/@fry69/deep-diff)](https://jsr.io/@fry69/deep-diff)
+[![JSR Score](https://jsr.io/badges/@fry69/deep-diff/score)](https://jsr.io/@fry69/deep-diff/score)
+
 # deep-diff
 
 A modern TypeScript/Deno implementation of the deep object difference algorithm,

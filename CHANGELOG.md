@@ -1,3 +1,9 @@
+### 0.1.10
+
+- add CI workflow
+- cleanup tasks
+- add badges
+
 ### 0.1.9
 
 - tweaked exports

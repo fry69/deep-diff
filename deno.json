@@ -1,18 +1,13 @@
 {
   "name": "@fry69/deep-diff",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "exports": "./deep-diff.ts",
   "tasks": {
-    "test": "deno test deep-diff_test.ts",
-    "fmt": "deno fmt deep-diff.ts deep-diff_test.ts",
-    "dev": "deno test --watch deep-diff_test.ts",
-    "check": "deno lint deep-diff.ts deep-diff_test.ts && deno fmt --check deep-diff.ts deep-diff_test.ts && deno test deep-diff_test.ts"
+    "test": "deno test",
+    "check": "deno fmt --check && deno lint && deno check && deno task test"
   },
   "license": "MIT",
   "imports": {
     "@std/assert": "jsr:@std/assert@1"
-  },
-  "publish": {
-    "exclude": [".vscode", ".github"]
   }
 }
